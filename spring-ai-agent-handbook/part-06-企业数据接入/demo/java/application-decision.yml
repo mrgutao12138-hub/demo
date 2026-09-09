@@ -1,0 +1,11 @@
+# 粘贴到 src/main/resources/application.yml 或 profile 片段
+decision:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/decision_demo
+    username: decision_readonly
+    password: decision_readonly_pass
+
+spring:
+  datasource:
+    # 若项目另有主库，不要用 spring.datasource 指向决策库，避免混用写连接
+    # 决策库仅通过 DecisionDataSourceConfig 的 @Bean 注入
