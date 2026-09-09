@@ -1,0 +1,21 @@
+# 决策宽表演示库 — 仅用于学习与本地验收，勿直连生产
+services:
+  decision-postgres:
+    image: postgres:16-alpine
+    container_name: decision-postgres-demo
+    environment:
+      POSTGRES_DB: decision_demo
+      POSTGRES_USER: decision_admin
+      POSTGRES_PASSWORD: decision_admin_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./sql/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./sql/02-views.sql:/docker-entrypoint-initdb.d/02-views.sql:ro
+      - ./sql/03-seed.sql:/docker-entrypoint-initdb.d/03-seed.sql:ro
+      - ./sql/04-readonly-user.sql:/docker-entrypoint-initdb.d/04-readonly-user.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U decision_admin -d decision_demo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
