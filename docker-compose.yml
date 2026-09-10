@@ -1,16 +1,10 @@
-# MinIO：兼容 S3 的对象存储（桶服务）
+# MinIO：本机对象存储（桶服务），数据只写在本机目录，不上传云端
 #
 # 启动：
-#   cp .env.example .env    # 可改账号、密码、桶名、端口
+#   cp .env.example .env
 #   docker compose up -d
 #
-# 访问：
-#   S3 API  : http://localhost:9000
-#   控制台  : http://localhost:9001
-#   账号密码: .env 里的 MINIO_ROOT_USER / MINIO_ROOT_PASSWORD
-#
-# 默认会自动创建名为 files 的桶（可用 MINIO_BUCKET 修改）。
-# SDK / aws cli 把 endpoint 指到 http://localhost:9000，并开启 path-style。
+# 详见 操作手册.md
 
 services:
   minio:
@@ -18,13 +12,15 @@ services:
     container_name: minio
     command: ["server", "/data", "--console-address", ":9001"]
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      # 默认只绑本机，局域网/公网访问不到
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
-      - minio-data:/data
+      # 对象文件落在仓库旁的本地目录，不是 Docker volume，也不是云存储
+      - ${MINIO_DATA_DIR:-./data}:/data
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -35,10 +31,9 @@ services:
     networks:
       - minio
 
-  # 首次启动时创建默认桶，已存在则跳过
+  # 首次启动时在本机 MinIO 里创建默认桶，已存在则跳过
   minio-init:
     image: quay.io/minio/mc:RELEASE.2025-07-21T05-28-08Z
-    container_name: minio-init
     depends_on:
       minio:
         condition: service_healthy
@@ -56,9 +51,6 @@ services:
     restart: "no"
     networks:
       - minio
-
-volumes:
-  minio-data:
 
 networks:
   minio:

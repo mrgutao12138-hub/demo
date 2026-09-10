@@ -1,15 +1,16 @@
-# demo
+# 本机对象存储（MinIO）
 
-Docker 上一键部署的 S3 兼容对象存储（桶服务），基于 MinIO。
+在自己电脑上用 Docker 跑一套 S3 兼容的桶服务。文件写在本机 `./data` 目录，不经过云端。
+
+完整步骤见 [操作手册.md](./操作手册.md)。
 
 ```bash
 cp .env.example .env
 docker compose up -d
 ```
 
-- S3 API：http://localhost:9000
-- 控制台：http://localhost:9001
-- 默认账号 / 密码：`minioadmin` / `minioadmin`（在 `.env` 里改）
-- 默认桶名：`files`
-
-上传、下载走 S3 API，把 SDK 的 endpoint 指到 `http://localhost:9000`，并使用 path-style。
+- 控制台：http://127.0.0.1:9001
+- S3 API：http://127.0.0.1:9000
+- 默认账号 / 密码：`minioadmin` / `minioadmin`
+- 默认桶：`files`
+- 本地数据：`./data`
