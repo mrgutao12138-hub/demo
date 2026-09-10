@@ -1,0 +1,57 @@
+# MinIO：本机对象存储（桶服务），数据只写在本机目录，不上传云端
+#
+# 启动：
+#   cp .env.example .env
+#   docker compose up -d
+#
+# 详见 操作手册.md
+
+services:
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-07-23T15-54-02Z
+    container_name: minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      # 默认只绑本机，局域网/公网访问不到
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      # 对象文件落在仓库旁的本地目录，不是 Docker volume，也不是云存储
+      - ${MINIO_DATA_DIR:-./data}:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - minio
+
+  # 首次启动时在本机 MinIO 里创建默认桶，已存在则跳过
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-07-21T05-28-08Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-files}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing "local/$$MINIO_BUCKET"
+        echo "bucket ready: $$MINIO_BUCKET"
+    restart: "no"
+    networks:
+      - minio
+
+networks:
+  minio:
+    driver: bridge
