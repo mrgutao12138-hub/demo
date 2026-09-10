@@ -1,0 +1,65 @@
+# MinIO：兼容 S3 的对象存储（桶服务）
+#
+# 启动：
+#   cp .env.example .env    # 可改账号、密码、桶名、端口
+#   docker compose up -d
+#
+# 访问：
+#   S3 API  : http://localhost:9000
+#   控制台  : http://localhost:9001
+#   账号密码: .env 里的 MINIO_ROOT_USER / MINIO_ROOT_PASSWORD
+#
+# 默认会自动创建名为 files 的桶（可用 MINIO_BUCKET 修改）。
+# SDK / aws cli 把 endpoint 指到 http://localhost:9000，并开启 path-style。
+
+services:
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-07-23T15-54-02Z
+    container_name: minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - minio
+
+  # 首次启动时创建默认桶，已存在则跳过
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-07-21T05-28-08Z
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-files}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing "local/$$MINIO_BUCKET"
+        echo "bucket ready: $$MINIO_BUCKET"
+    restart: "no"
+    networks:
+      - minio
+
+volumes:
+  minio-data:
+
+networks:
+  minio:
+    driver: bridge
